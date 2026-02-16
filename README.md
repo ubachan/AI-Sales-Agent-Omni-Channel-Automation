@@ -57,6 +57,7 @@ graph TD
   
   style Agent fill:#FF6D5A,color:#fff,stroke:#fff
   style Tools fill:#2D3B45,color:#fff,stroke:#fff
+
 ```
 
 ---
@@ -64,48 +65,94 @@ graph TD
 ## ⚙️ Setup & Installation
 
 ### 1. Prerequisites
+Before you begin, ensure you have:
+- Self-hosted **n8n** instance (or Cloud version).
+- **Supabase** project for backend logic.
+- **Google Cloud Console** project with Sheets API enabled.
+- **Pinecone** account for Vector Store.
 
-* Self-hosted **n8n** instance (or Cloud version).
-* **Supabase** project for backend logic.
-* **Google Cloud Console** project with Sheets API enabled.
-* **Pinecone** account for Vector Store.
+---
 
-### 2. Import Workflow
-
+### 2. Import Main Workflow
 1. Download the `workflow.json` file from this repository.
 2. Open your n8n dashboard.
 3. Click **"Import from File"** and select the JSON file.
 
-### 3. Environment Variables (Credentials)
+> **⚠️ Important:** The `workflow.json` file has been **sanitized**. All sensitive keys and URLs have been replaced with placeholders.
 
-You need to configure the following credentials in n8n:
+---
+
+### 3. Build "Image Sender" Sub-Workflow
+You need to manually create a separate workflow to handle image responses. Create a new workflow in n8n and add these 3 nodes:
+
+#### **Node A: Execute Workflow Trigger**
+- **Action:** Add two input fields in the parameters:
+  - Name: `productid`
+  - Name: `psid`
+
+#### **Node B: Google Sheets (Get Row)**
+- **Operation:** Get Row(s) in Sheet.
+- **Sheet Name:** Select your "Product Image" sheet.
+- **Filter:** Set `Product ID` to match `{{ $json.productid }}`.
+
+#### **Node C: HTTP Request**
+- **Method:** POST
+- **URL:** `YOUR_SUPABASE_URL/functions/v1/imagesenderedge`
+- **Body Parameters:**
+  - `page_id`: `YOUR_PAGE_ID`
+  - `user_psid`: `{{ $('Execute Workflow Trigger').item.json.psid }}`
+  - `image_url`: `{{ $json['Image Link'] }}`
+  - `access_token`: `YOUR_META_ACCESS_TOKEN`
+
+> **🔔 Critical Step:** Save this new workflow and copy its **Workflow ID**. Go back to the **Main Workflow**, open the **"send a image to user"** node, and paste this ID there.
+
+---
+
+### 4. Configuration Steps
+
+#### Step A: Configure Credentials
+Create the following credentials in n8n and select them in their respective nodes:
 
 | Service | Credential Name in n8n | Purpose |
-| --- | --- | --- |
-| **OpenAI** | `OpenAI Api` | For LLM logic & Whisper audio transcription. |
-| **Google Gemini** | `Gemini API` | For analyzing product images. |
-| **Facebook Graph** | `Facebook Graph API` | For sending/receiving Messenger chats. |
-| **Google Sheets** | `Google Sheets OAuth2` | For database management. |
-| **Pinecone** | `PineconeApi` | For Knowledge Base retrieval. |
-| **BD Courier** | `BD Courier Auth` | For customer fraud check API. |
-| **Postgres** | `Postgres DB` | For chat memory storage. |
+| :--- | :--- | :--- |
+| **OpenAI** | `OpenAI Api` | LLM logic & Whisper transcription. |
+| **Google Gemini** | `Gemini API` | Analyzing product images. |
+| **Facebook** | `Facebook Graph API` | Sending/receiving Messenger chats. |
+| **Google Sheets** | `Google Sheets OAuth2` | Inventory & Order database. |
+| **Pinecone** | `PineconeApi` | Knowledge Base retrieval. |
+| **BD Courier** | `BD Courier Auth` | Customer fraud check API (Bearer Token). |
+| **Postgres** | `Postgres DB` | Chat memory storage. |
+
+#### Step B: Replace Placeholders
+Open the workflow nodes and replace these placeholders with your actual data:
+
+| Placeholder | Description |
+| :--- | :--- |
+| `YOUR_GOOGLE_SHEET_ID` | The ID found in your Google Sheet URL. |
+| `YOUR_SHEET_URL` | The full URL of your Google Sheet. |
+| `YOUR_PAGE_ID` | Your Facebook Page ID. |
+| `YOUR_META_ACCESS_TOKEN` | Long-lived Page Access Token from Meta. |
+| `YOUR_VIBE_API_KEY` | API Key for Vibe/Supabase functions. |
+| `YOUR_SUPABASE_URL` | Your Supabase Project URL. |
+| `YOUR_PINECONE_INDEX` | Name of your Pinecone Index. |
+| `YOUR_WEBHOOK_PATH` | Custom path for the n8n Webhook node. |
+| `YOUR_SUPPORT_NUMBER` | Hotline number used in the System Prompt. |
 
 ---
 
 ## 📂 File Structure
 
 ```
-├── workflow.json          # Main n8n workflow file (Cleaned)
+├── workflow.json          # Main n8n workflow file
 ├── README.md              # Documentation
 └── assets/                # Diagram images
-
 ```
 
 ---
 
 ## 🤝 Contribution
 
-Feel free to fork this repository and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.
+*Feel free to fork this repository and submit pull requests. For major changes, please open an issue first to discuss what you would like to change.*
 
 ---
 
